@@ -37,7 +37,13 @@ export default async function handler(req,res){
     return l
   })
   if(!found) out.push('ADMIN_PASSWORD=' + newPassword)
-  writeEnv(out.join('\n'))
-
-  return res.status(200).json({ success:true })
+  try{
+    writeEnv(out.join('\n'))
+    return res.status(200).json({ success:true })
+  }catch(err){
+    // In serverless environments (Vercel) filesystem may be read-only.
+    // Return a clear JSON error so frontend can show a helpful message.
+    console.error('Failed to write .env.local:', err && err.message)
+    return res.status(500).json({ error: "Impossible de modifier le mot de passe sur cet environnement. Configurez ADMIN_PASSWORD dans les variables d'environnement de la plateforme (ex: Vercel)." })
+  }
 }
