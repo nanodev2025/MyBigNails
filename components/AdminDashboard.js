@@ -24,6 +24,7 @@ export default function AdminDashboard(){
   const [openServices, setOpenServices] = useState(false)
   const [openBlocks, setOpenBlocks] = useState(false)
   const [openSettings, setOpenSettings] = useState(false)
+  const [editForm, setEditForm] = useState(null)
 
   useEffect(()=>{
     fetchData()
@@ -271,7 +272,70 @@ export default function AdminDashboard(){
                 <div className="text-sm text-gray-600">{new Date(b.date).toLocaleString()} • {b.serviceTitle}</div>
               </div>
               <div className="flex flex-col sm:flex-row gap-2 items-center sm:items-end">
-                <button onClick={()=>updateStatus(b.id,'confirmed')} className="w-full sm:w-auto px-2 py-1 text-sm rounded-full bg-green-100">Valider</button>
+                <button onClick={()=>{
+                  // open edit modal
+                  const toInput = (iso)=>{
+                    if(!iso) return ''
+                    const d = new Date(iso)
+                    const tzOffset = d.getTimezoneOffset()*60000
+                    const local = new Date(d - tzOffset)
+                    return local.toISOString().slice(0,16)
+                  }
+                  setEditForm({
+                    id: b.id,
+                    firstName: b.firstName || '',
+                    lastName: b.lastName || '',
+                    phone: b.phone || '',
+                    email: b.email || '',
+                    datetime: toInput(b.date)
+                  })
+                  const content = (
+                    <div className="grid gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <input value={editForm ? editForm.firstName : (b.firstName||'')} onChange={e=>setEditForm(prev=>({... (prev||{}), firstName: e.target.value}))} className="p-2 border rounded" placeholder="Prénom" />
+                        <input value={editForm ? editForm.lastName : (b.lastName||'')} onChange={e=>setEditForm(prev=>({... (prev||{}), lastName: e.target.value}))} className="p-2 border rounded" placeholder="Nom" />
+                      </div>
+                      <input type="datetime-local" value={editForm ? editForm.datetime : ''} onChange={e=>setEditForm(prev=>({... (prev||{}), datetime: e.target.value}))} className="p-2 border rounded" />
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <input value={editForm ? editForm.phone : (b.phone||'')} onChange={e=>setEditForm(prev=>({... (prev||{}), phone: e.target.value}))} className="p-2 border rounded" placeholder="Téléphone" />
+                        <input value={editForm ? editForm.email : (b.email||'')} onChange={e=>setEditForm(prev=>({... (prev||{}), email: e.target.value}))} className="p-2 border rounded" placeholder="Email" />
+                      </div>
+                    </div>
+                  )
+                  setModal({ open:true, title:`Modifier le rendez-vous`, content, onConfirm: async ()=>{
+                    // prepare payload
+                    if(!editForm) return
+                    const toISO = (localStr)=>{
+                      if(!localStr) return null
+                      const d = new Date(localStr)
+                      // convert local to ISO
+                      const tzOffset = d.getTimezoneOffset()*60000
+                      const iso = new Date(d.getTime() + tzOffset).toISOString()
+                      return iso
+                    }
+                    const payload = {
+                      id: editForm.id,
+                      firstName: editForm.firstName,
+                      lastName: editForm.lastName,
+                      phone: editForm.phone,
+                      email: editForm.email,
+                      date: toISO(editForm.datetime)
+                    }
+                    setLoading(true)
+                    try{
+                      const res = await fetch('/api/bookings', {method:'PUT', headers:{'content-type':'application/json'}, body:JSON.stringify(payload)})
+                      const data = await res.json()
+                      if(res.ok && data.success){
+                        await fetchData()
+                        setToast({open:true,message:'Rendez-vous modifié',type:'success'})
+                        setModal({open:false})
+                      } else {
+                        setToast({open:true,message:data.error||data.message||'Erreur',type:'warning'})
+                      }
+                    }catch(e){ setToast({open:true,message:'Erreur réseau',type:'warning'}) }
+                    setLoading(false)
+                  }, onCancel: ()=> setModal({open:false}) })
+                }} className="w-full sm:w-auto px-2 py-1 text-sm rounded-full border">Modifier</button>
                 <button onClick={()=>cancelBooking(b.id)} className="w-full sm:w-auto px-2 py-1 text-sm rounded-full bg-red-100">Annuler</button>
                 <button onClick={()=>{
                   const content = (
@@ -282,7 +346,7 @@ export default function AdminDashboard(){
                       {(!b.phone && !b.email) && (<div className="text-sm text-gray-600">Aucun contact fourni</div>)}
                     </div>
                   )
-                  setModal({ open:true, title:`Contact — ${b.firstName} ${b.lastName}`, content, onConfirm: ()=> setModal({open:false}), onCancel: ()=> setModal({open:false}) })
+                  setModal({ open:true, title:`Contact — ${b.firstName} ${b.lastName}`, content, onConfirm: ()=> setModal({open:false}) })
                 }} className="w-full sm:w-auto px-2 py-1 text-sm rounded-full border">Contact</button>
               </div>
             </div>

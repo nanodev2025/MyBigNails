@@ -10,7 +10,9 @@ export default function Modal({ open, title, children, onConfirm, onCancel, conf
         </div>
         <div className="mb-4 text-sm text-gray-700">{children}</div>
         <div className="flex justify-end gap-2">
-          <button onClick={onCancel} className="px-3 py-2 rounded-full border">{cancelLabel}</button>
+          {onCancel ? (
+            <button onClick={onCancel} className="px-3 py-2 rounded-full border">{cancelLabel}</button>
+          ) : null}
           <button onClick={onConfirm} className="px-3 py-2 rounded-full btn-accent">{confirmLabel}</button>
         </div>
       </div>
