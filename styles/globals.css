@@ -1,0 +1,64 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Styles globaux et variables pour thème girly */
+:root{
+  --accent:#D89CA8;
+  --rose-powder:#F8E8EB;
+  --nude:#F5E9E0;
+  --beige-warm:#F2E6DA;
+  --rose-gold:#CFA18D;
+}
+
+html,body,#__next{
+  height:100%;
+}
+
+body{
+  @apply bg-rose-powder text-gray-800 font-sans;
+}
+
+.rounded-soft{
+  border-radius: 12px;
+}
+
+.btn-accent{
+  background: linear-gradient(90deg,var(--accent),var(--rose-gold));
+  color: white;
+}
+
+/* Animations pour transition planning */
+@keyframes slideInFromRight {
+  from { opacity: 0; transform: translateX(20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes slideInFromLeft {
+  from { opacity: 0; transform: translateX(-20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.animate-slide-in-right{
+  animation: slideInFromRight 320ms ease;
+}
+.touch-scroll{
+  -webkit-overflow-scrolling: touch;
+}
+.animate-slide-in-left{
+  animation: slideInFromLeft 320ms ease;
+}
+
+@keyframes fadeIn { from { opacity: 0; transform: translateY(6px) } to { opacity: 1; transform: translateY(0) } }
+.animate-fade-in{ animation: fadeIn 200ms ease; }
+
+/* Empêche le zoom automatique sur iOS quand on focus un input en mobile
+   iOS zoom automatiquement si la police est plus petite que 16px.
+   On force donc une taille minimale sur petits écrans pour éviter ce comportement.
+*/
+@media (max-width: 600px) {
+  input, textarea, select {
+    font-size: 16px;
+    -webkit-text-size-adjust: 100%;
+  }
+}
+

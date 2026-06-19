@@ -1,0 +1,13 @@
+node_modules/
+.next/
+.env*
+.DS_Store
+/.idea/
+.vscode/
+public/uploads/
+dist/
+coverage/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json

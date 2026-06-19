@@ -1,0 +1,8 @@
+{
+  "openHour": 9,
+  "closeHour": 18,
+  "slotInterval": 60,
+  "closedDays": [
+    0
+  ]
+}

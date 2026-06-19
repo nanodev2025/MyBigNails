@@ -1,0 +1,26 @@
+[
+  {
+    "id":"s_chablon",
+    "title":"Pose complète chablon",
+    "duration":120,
+    "price":60
+  },
+  {
+    "id":"s_remplissage",
+    "title":"Remplissage",
+    "duration":60,
+    "price":40
+  },
+  {
+    "id":"s_semi",
+    "title":"Vernis semi-permanent",
+    "duration":45,
+    "price":30
+  },
+  {
+    "id":"s_nailart",
+    "title":"Nail Art (décor simple)",
+    "duration":30,
+    "price":20
+  }
+]
