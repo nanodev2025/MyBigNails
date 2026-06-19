@@ -135,7 +135,18 @@ export default async function handler(req,res){
     const body = req.body
     if(supabase){
       try{
-        const { data, error } = await supabase.from('bookings').update(body).eq('id', body.id).select().single()
+        // map camelCase keys from frontend to snake_case DB columns
+        const updatePayload = { ...body }
+        if(updatePayload.firstName !== undefined){ updatePayload.first_name = updatePayload.firstName; delete updatePayload.firstName }
+        if(updatePayload.lastName !== undefined){ updatePayload.last_name = updatePayload.lastName; delete updatePayload.lastName }
+        if(updatePayload.serviceId !== undefined){ updatePayload.service_id = updatePayload.serviceId; delete updatePayload.serviceId }
+        if(updatePayload.serviceTitle !== undefined){ updatePayload.service_title = updatePayload.serviceTitle; delete updatePayload.serviceTitle }
+        if(updatePayload.datetime !== undefined){ updatePayload.date = new Date(updatePayload.datetime).toISOString(); delete updatePayload.datetime }
+        if(updatePayload.date !== undefined){ updatePayload.date = new Date(updatePayload.date).toISOString() }
+        // don't try to update primary key
+        delete updatePayload.id
+
+        const { data, error } = await supabase.from('bookings').update(updatePayload).eq('id', body.id).select().single()
         if(error) throw error
         return res.status(200).json({ success:true, booking: data })
       }catch(err){

@@ -355,7 +355,7 @@ export default function AdminDashboard(){
       </section>
       {/* Modals & Toasts admin */}
       {modal?.open && (
-        <Modal open={modal.open} title={modal.title} onConfirm={modal.onConfirm} onCancel={()=>setModal({open:false})} confirmLabel="Oui" cancelLabel="Non" type="warning">
+        <Modal open={modal.open} title={modal.title} onConfirm={modal.onConfirm} onCancel={()=>setModal({open:false})} confirmLabel="Enregistrer" cancelLabel="Annuler" type="warning">
           {modal.content}
         </Modal>
       )}
