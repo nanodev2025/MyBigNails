@@ -59,7 +59,12 @@ export default async function handler(req,res){
       status: 'pending'
     }
     bookings.push(booking)
-    fs.writeFileSync(bookingsPath, JSON.stringify(bookings, null, 2))
+    try{
+      fs.writeFileSync(bookingsPath, JSON.stringify(bookings, null, 2))
+    }catch(err){
+      console.error('Failed to write bookings.json:', err && err.message)
+      return res.status(500).json({ success:false, error: 'Impossible d\'enregistrer la réservation sur cet environnement.' })
+    }
     return res.status(200).json({success:true, booking})
   }
 
@@ -72,7 +77,12 @@ export default async function handler(req,res){
     const idx = bookings.findIndex(b=> b.id === body.id)
     if(idx === -1) return res.status(404).json({error:'Not found'})
     bookings[idx] = {...bookings[idx], ...body}
-    fs.writeFileSync(bookingsPath, JSON.stringify(bookings, null, 2))
+    try{
+      fs.writeFileSync(bookingsPath, JSON.stringify(bookings, null, 2))
+    }catch(err){
+      console.error('Failed to write bookings.json (PUT):', err && err.message)
+      return res.status(500).json({ success:false, error: 'Impossible de mettre à jour la réservation sur cet environnement.' })
+    }
     return res.status(200).json({success:true})
   }
 
@@ -82,7 +92,12 @@ export default async function handler(req,res){
     const id = req.query.id
     let bookings = readJSON(bookingsPath)
     bookings = bookings.filter(b=> b.id !== id)
-    fs.writeFileSync(bookingsPath, JSON.stringify(bookings, null, 2))
+    try{
+      fs.writeFileSync(bookingsPath, JSON.stringify(bookings, null, 2))
+    }catch(err){
+      console.error('Failed to write bookings.json (DELETE):', err && err.message)
+      return res.status(500).json({ success:false, error: 'Impossible de supprimer la réservation sur cet environnement.' })
+    }
     return res.status(200).json({success:true})
   }
 
