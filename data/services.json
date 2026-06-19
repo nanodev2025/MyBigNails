@@ -1,1 +1,38 @@
-[{"id":"s_coupe","title":"Coupe de cheveux","duration":45,"price":35},{"id":"s_coloration","title":"Coloration complète","duration":90,"price":60},{"id":"s_brushing","title":"Brushing","duration":30,"price":25},{"id":"s_soin_visage","title":"Soin du visage","duration":60,"price":50},{"id":"s_massage","title":"Massage relaxant (1h)","duration":60,"price":70},{"id":"s_epilation","title":"Épilation complète jambes + aisselles","duration":45,"price":40}]
+[
+  {
+    "id": "s_coupe",
+    "title": "Coupe de cheveux",
+    "price": 35,
+    "duration": 45
+  },
+  {
+    "id": "s_coloration",
+    "title": "Coloration complète",
+    "duration": 90,
+    "price": 60
+  },
+  {
+    "id": "s_brushing",
+    "title": "Brushing",
+    "duration": 30,
+    "price": 25
+  },
+  {
+    "id": "s_soin_visage",
+    "title": "Soin du visage",
+    "duration": 60,
+    "price": 50
+  },
+  {
+    "id": "s_massage",
+    "title": "Massage relaxant (1h)",
+    "duration": 60,
+    "price": 70
+  },
+  {
+    "id": "s_epilation",
+    "title": "Épilation complète jambes + aisselles",
+    "duration": 45,
+    "price": 40
+  }
+]

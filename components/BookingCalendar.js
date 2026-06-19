@@ -1,12 +1,12 @@
 import { useEffect, useState, useRef } from 'react'
 import Modal from './Modal'
 import Toast from './Toast'
+import { generateSlots, isValidEmail, isValidFrenchPhone } from '../lib/utils'
 
 export default function BookingCalendar({ services }){
   const [selectedService, setSelectedService] = useState(null)
   const [bookings, setBookings] = useState([])
   const [settings, setSettings] = useState(null)
-  const [startOffset, setStartOffset] = useState(0) // days offset from today (used for week navigation)
   const [loadedDays, setLoadedDays] = useState([]) // days loaded into the planner
   const [visibleIndex, setVisibleIndex] = useState(0) // first visible day index (for mobile scroll)
   const daysContainerRef = useRef(null)
@@ -62,20 +62,7 @@ export default function BookingCalendar({ services }){
     return `${f.toLocaleString('fr-FR', { month:'short', year:'numeric' })} - ${l.toLocaleString('fr-FR', { month:'short', year:'numeric' })}`
   }
 
-  function generateSlots(day){
-    if(!settings) return []
-    const open = settings.openHour ?? 9
-    const close = settings.closeHour ?? 18
-    const interval = settings.slotInterval ?? 60
-    const slots = []
-    const cur = new Date(day)
-    cur.setHours(open,0,0,0)
-    while(cur.getHours() < close){
-      slots.push(new Date(cur))
-      cur.setMinutes(cur.getMinutes() + interval)
-    }
-    return slots
-  }
+
 
   function isTaken(slot){
     return bookings.some(b => new Date(b.date).getTime() === slot.getTime())
@@ -93,12 +80,65 @@ export default function BookingCalendar({ services }){
     })
   }
 
+  // Vérifie si un slot est bloqué par la sélection actuelle en fonction de la durée du service
+  function isConflictingWithSelection(slot) {
+    if (!selectedSlot || !selectedService || !selectedService.duration) return false
+    
+    const slotTime = slot.getTime()
+    const selectedTime = selectedSlot.getTime()
+    const durationMinutes = selectedService.duration || 60
+    const selectedEndTime = selectedTime + durationMinutes * 60000
+    
+    // Si le slot est le même que celui sélectionné, ne pas le bloquer
+    if (slotTime === selectedTime) return false
+    
+    // Ne bloquer que si le slot commence APRES le début du créneau sélectionné ET avant la fin
+    // Exemple: sélection à 10h00 avec 90min -> bloque 10h30, 11h00, mais PAS 9h00
+    return slotTime > selectedTime && slotTime < selectedEndTime
+  }
+
+  // Vérifie si un slot est bloqué par une réservation existante en fonction de la durée du service
+  function isConflictingWithExistingBooking(slot) {
+    if (!selectedService || !selectedService.duration) return false
+    
+    const slotTime = slot.getTime()
+    const durationMinutes = selectedService.duration || 60
+    const slotEndTime = slotTime + durationMinutes * 60000
+    
+    return bookings.some(b => {
+      // Trouver la durée du service de cette réservation
+      const bookingService = services.find(s => s.id === b.serviceId || s.id === b.service_id)
+      const bookingDuration = bookingService?.duration || 60
+      const bookingTime = new Date(b.date).getTime()
+      const bookingEndTime = bookingTime + bookingDuration * 60000
+      
+      // Vérifie si les intervalles se chevauchent vraiment
+      // Le slot est bloqué si :
+      // 1. Le slot commence DURANT une réservation existante (slotTime >= bookingTime && slotTime < bookingEndTime)
+      // OU
+      // 2. La réservation existante commence DURANT le slot (bookingTime >= slotTime && bookingTime < slotEndTime)
+      // Mais PAS si le slot est complètement AVANT ou complètement APRES
+      return (slotTime >= bookingTime && slotTime < bookingEndTime) || 
+             (bookingTime >= slotTime && bookingTime < slotEndTime)
+    })
+  }
+
   async function submitBooking(){
     if(!selectedService || !selectedSlot) return setToast({open:true, message:'Veuillez choisir une prestation et un créneau', type:'warning'})
-    // require first name AND last name
-    if(!(form.firstName && form.firstName.trim()) || !(form.lastName && form.lastName.trim())){
-      return setToast({open:true, message:'Le prénom et le nom sont obligatoires', type:'warning'})
+    // require first name OR last name
+    if(!(form.firstName && form.firstName.trim()) && !(form.lastName && form.lastName.trim())){
+      return setToast({open:true, message:'Veuillez fournir un prénom ou un nom', type:'warning'})
     }
+    // Validate phone format (10 digits)
+    if(form.phone && form.phone.trim() && !isValidFrenchPhone(form.phone)){
+      return setToast({open:true, message:'Le téléphone doit contenir 10 chiffres', type:'warning'})
+    }
+    
+    // Validate email format
+    if(form.email && form.email.trim() && !isValidEmail(form.email)){
+      return setToast({open:true, message:'Format d\'email invalide', type:'warning'})
+    }
+    
     // require phone OR email
     if(!(form.phone && form.phone.trim()) && !(form.email && form.email.trim())){
       return setToast({open:true, message:'Veuillez fournir un téléphone ou un email', type:'warning'})
@@ -109,7 +149,8 @@ export default function BookingCalendar({ services }){
     const data = await resp.json()
     setLoading(false)
     if(data.success){
-      setBookings(prev => [...prev, data.booking])
+      // Recharger tous les RDV pour être sûr d'avoir les dernières données
+      fetch('/api/bookings').then(r=>r.json()).then(setBookings)
       setSelectedSlot(null)
       setToast({open:true, message:'Rendez-vous demandé ✔️', type:'success'})
     } else {
@@ -175,20 +216,20 @@ export default function BookingCalendar({ services }){
           {/* Desktop : 7 jours fixes */}
           {isDesktop ? (
             <div className="max-w-full w-full">
-              <div className="flex gap-2 mt-3 w-full flex-wrap">
+              <div className="flex gap-2 mt-3 w-full whitespace-nowrap">
                 {visibleDays.map(d => (
-                  <div data-day key={d.toDateString()} className="min-w-[100px] flex-1 p-2 bg-nude rounded-lg text-center">
+                  <div data-day key={d.toDateString()} className="w-[14%] p-2 bg-nude rounded-lg text-center">
                     <div className="text-xs">{d.toLocaleDateString(undefined, { weekday: 'short' })}</div>
                     <div className="text-sm font-semibold">{d.getDate()}</div>
-                    <div className="mt-2">
-                      {generateSlots(d).map((slot, i) => {
-                        const blocked = isTaken(slot) || isBlocked(slot);
+                    <div className="mt-2 flex flex-col">
+                      {generateSlots(d, settings).map((slot, i) => {
+                        const blocked = isTaken(slot) || isBlocked(slot) || isConflictingWithExistingBooking(slot) || isConflictingWithSelection(slot);
                         return (
                           <button
                             key={i}
                             disabled={blocked}
                             onClick={() => { if (!blocked) setSelectedSlot(slot); }}
-                            className={'m-1 p-1 px-2 rounded-full text-xs ' + (blocked ? 'bg-gray-200 text-gray-400 ' : 'bg-beige-warm ') + (selectedSlot && selectedSlot.getTime() === slot.getTime() ? 'ring-2 ring-accent' : '')}
+                            className={'m-1 p-1 px-2 rounded-full text-xs w-full ' + (blocked ? 'bg-gray-200 text-gray-400 ' : 'bg-beige-warm ') + (selectedSlot && selectedSlot.getTime() === slot.getTime() ? 'ring-2 ring-accent' : '')}
                           >
                             {slot.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </button>
@@ -201,20 +242,20 @@ export default function BookingCalendar({ services }){
             </div>
           ) : (
             /* Mobile : scroll horizontal */
-            <div ref={daysContainerRef} className="flex gap-2 mt-3 w-full flex-wrap" key={animKey}>
+            <div ref={daysContainerRef} className="flex gap-2 mt-3 w-full overflow-x-auto whitespace-nowrap" key={animKey}>
               {loadedDays.map(d => (
-                <div data-day key={d.toDateString()} className="min-w-[100px] flex-1 p-2 bg-nude rounded-lg text-center">
+                <div data-day key={d.toDateString()} className="min-w-[120px] p-2 bg-nude rounded-lg text-center">
                   <div className="text-xs">{d.toLocaleDateString(undefined, { weekday: 'short' })}</div>
                   <div className="text-sm font-semibold">{d.getDate()}</div>
-                  <div className="mt-2">
-                    {generateSlots(d).map((slot, i) => {
-                      const blocked = isTaken(slot) || isBlocked(slot);
+                  <div className="mt-2 flex flex-col">
+                    {generateSlots(d, settings).map((slot, i) => {
+                      const blocked = isTaken(slot) || isBlocked(slot) || isConflictingWithExistingBooking(slot) || isConflictingWithSelection(slot);
                       return (
                         <button
                           key={i}
                           disabled={blocked}
                           onClick={() => { if (!blocked) setSelectedSlot(slot); }}
-                          className={'m-1 p-1 px-2 rounded-full text-xs ' + (blocked ? 'bg-gray-200 text-gray-400 ' : 'bg-beige-warm ') + (selectedSlot && selectedSlot.getTime() === slot.getTime() ? 'ring-2 ring-accent' : '')}
+                          className={'m-1 p-1 px-2 rounded-full text-xs w-full ' + (blocked ? 'bg-gray-200 text-gray-400 ' : 'bg-beige-warm ') + (selectedSlot && selectedSlot.getTime() === slot.getTime() ? 'ring-2 ring-accent' : '')}
                         >
                           {slot.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </button>
@@ -232,11 +273,20 @@ export default function BookingCalendar({ services }){
               <div className="text-sm text-gray-600">Prestation: {selectedService?.title || '—'}</div>
               <div className="text-sm">Créneau: {selectedSlot.toLocaleString()}</div>
 
-              <div className="mt-3 grid grid-cols-1 sm:grid-cols-4 gap-2">
-                <input className="p-2 rounded border" placeholder="Prénom" value={form.firstName} onChange={e=>setForm(f=>({...f, firstName:e.target.value}))} />
-                <input className="p-2 rounded border" placeholder="Nom" value={form.lastName} onChange={e=>setForm(f=>({...f, lastName:e.target.value}))} />
-                <input className="p-2 rounded border" placeholder="Téléphone" value={form.phone} onChange={e=>setForm(f=>({...f, phone:e.target.value}))} />
-                <input className="p-2 rounded border" placeholder="Email" value={form.email} onChange={e=>setForm(f=>({...f, email:e.target.value}))} />
+              <div className="mt-3 flex flex-col gap-2">
+                {/* Prénom ou Nom */}
+                <div className="flex flex-col items-center gap-1">
+                  <input className="flex-1 p-2 rounded border w-full" placeholder="Prénom" value={form.firstName} onChange={e=>setForm(f=>({...f, firstName:e.target.value}))} />
+                  <span className="text-gray-500 text-sm">ou</span>
+                  <input className="flex-1 p-2 rounded border w-full" placeholder="Nom" value={form.lastName} onChange={e=>setForm(f=>({...f, lastName:e.target.value}))} />
+                </div>
+                
+                {/* Téléphone ou Email */}
+                <div className="flex flex-col items-center gap-1">
+                  <input className="flex-1 p-2 rounded border w-full" placeholder="Téléphone" value={form.phone} onChange={e=>setForm(f=>({...f, phone:e.target.value}))} />
+                  <span className="text-gray-500 text-sm">ou</span>
+                  <input className="flex-1 p-2 rounded border w-full" placeholder="Email" value={form.email} onChange={e=>setForm(f=>({...f, email:e.target.value}))} />
+                </div>
               </div>
 
               <div className="mt-3 flex gap-2">

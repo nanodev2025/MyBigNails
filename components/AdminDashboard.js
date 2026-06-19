@@ -2,12 +2,15 @@ import { useEffect, useState } from 'react'
 import Modal from './Modal'
 import Toast from './Toast'
 import FullscreenModal from './FullscreenModal'
+import SmallCalendar from './SmallCalendar'
+import { enrichBookings } from '../lib/utils'
 
 // Dashboard admin minimal pour gérer RDV et planning
 export default function AdminDashboard(){
   const [bookings, setBookings] = useState([])
   const [settings, setSettings] = useState(null)
   const [carousel, setCarousel] = useState([])
+  const [refreshKey, setRefreshKey] = useState(0)
   const [fileInput, setFileInput] = useState(null)
   const [blocks, setBlocks] = useState([])
   const [blockForm, setBlockForm] = useState({type:'range', start:'', end:''})
@@ -17,14 +20,13 @@ export default function AdminDashboard(){
   const [toast, setToast] = useState({open:false,message:'',type:'info'})
   const [services, setServices] = useState([])
   const [serviceForm, setServiceForm] = useState({title:'', price:0, duration:60})
-  const [currPassword, setCurrPassword] = useState('')
-  const [newPassword, setNewPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [changingPwd, setChangingPwd] = useState(false)
   const [openServices, setOpenServices] = useState(false)
   const [openBlocks, setOpenBlocks] = useState(false)
-  const [openSettings, setOpenSettings] = useState(false)
-  const [editForm, setEditForm] = useState(null)
+  const [billedAmount, setBilledAmount] = useState(0)
+  const [paidBookings, setPaidBookings] = useState({}) // {bookingId: amount}
+  const [openPaymentModal, setOpenPaymentModal] = useState(false)
+  const [selectedBookingForPayment, setSelectedBookingForPayment] = useState(null)
+  const [paymentAmount, setPaymentAmount] = useState('')
 
   useEffect(()=>{
     fetchData()
@@ -32,36 +34,41 @@ export default function AdminDashboard(){
 
   // prevent background scroll when any modal is open
   useEffect(()=>{
-    const anyOpen = openServices || openBlocks || openSettings || modal?.open
+    const anyOpen = openServices || openBlocks || modal?.open
     if(anyOpen) document.body.classList.add('overflow-hidden')
     else document.body.classList.remove('overflow-hidden')
     return ()=> document.body.classList.remove('overflow-hidden')
-  },[openServices, openBlocks, openSettings, modal])
+  },[openServices, openBlocks, modal])
+
+  // Auto-refresh every 30 seconds
+  useEffect(()=>{
+    const interval = setInterval(()=>{
+      fetchData()
+    }, 30000)
+    return ()=> clearInterval(interval)
+  },[])
 
   async function fetchData(){
-    const bkRaw = await fetch('/api/bookings').then(r=>r.json())
-    // normalize booking fields (support camelCase and snake_case from Supabase)
-    const bk = (bkRaw || []).map(b=> ({
-      id: b.id || b.uuid || b.ID,
-      serviceId: b.serviceId || b.service_id || b.service_id,
-      serviceTitle: b.serviceTitle || b.service_title || b.service_title || b.serviceTitle,
-      price: b.price || b.price || 0,
-      date: b.date || b.date,
-      firstName: b.firstName || b.first_name || b.first_name || '',
-      lastName: b.lastName || b.last_name || b.last_name || '',
-      phone: b.phone || b.phone || '',
-      email: b.email || b.email || '',
-      status: b.status || b.status || 'pending'
-    }))
-    const st = await fetch('/api/admin/settings').then(r=>r.json())
-    const car = await fetch('/api/carousel').then(r=>r.json())
-    const bl = await fetch('/api/admin/blocks').then(r=>r.json())
-    const sv = await fetch('/api/services').then(r=>r.json())
-    setBookings(bk)
+    const [bkRaw, st, car, bl, sv] = await Promise.all([
+      fetch('/api/bookings').then(r=>r.json()),
+      fetch('/api/admin/settings').then(r=>r.json()),
+      fetch('/api/carousel').then(r=>r.json()),
+      fetch('/api/admin/blocks').then(r=>r.json()),
+      fetch('/api/services').then(r=>r.json())
+    ])
+    
+    // Enrichir les bookings avec les données des services
+    const enrichedBookings = enrichBookings(bkRaw || [], sv)
+    
+    setBookings(enrichedBookings)
     setSettings(st)
     setCarousel(car)
     setBlocks(bl)
     setServices(sv)
+    setRefreshKey(k => k + 1)
+    
+    // Stocker dans localStorage pour la page transactions
+    localStorage.setItem('allBookings', JSON.stringify(enrichedBookings))
   }
 
   async function updateStatus(id, status){
@@ -73,14 +80,14 @@ export default function AdminDashboard(){
   }
 
   async function cancelBooking(id){
-    setModal({open:true, title:'Annuler le rendez-vous', content:'Voulez-vous vraiment annuler ?', onConfirm: async ()=>{
+    setModal({open:true, title:'Annuler le rendez-vous', content:'Voulez-vous vraiment annuler ce rendez-vous ?', onConfirm: async ()=>{
       setModal({open:false})
       setLoading(true)
       await fetch('/api/bookings?id='+id, {method:'DELETE'})
       await fetchData()
       setLoading(false)
       setToast({open:true, message:'Rendez-vous annulé', type:'warning'})
-    }})
+    }, onCancel: ()=> setModal({open:false}), confirmLabel: 'Annuler le RDV', cancelLabel: 'Garder'})
   }
 
   async function toggleDayOff(){
@@ -194,53 +201,13 @@ export default function AdminDashboard(){
     setToast({open:true,message:'Bloc supprimé',type:'success'})
   }
 
-  // Small calendar component (inline) for selecting multiple days
-  function SmallCalendar({ selectedDays, onToggleDay }){
-    const [month, setMonth] = useState(new Date())
-    function startOfMonth(d){ return new Date(d.getFullYear(), d.getMonth(), 1) }
-    function daysInMonth(d){ return new Date(d.getFullYear(), d.getMonth()+1, 0).getDate() }
-    const first = startOfMonth(month)
-    const blanks = first.getDay() // 0-6 (Sun-Sat)
-    const total = daysInMonth(month)
-    const days = []
-    for(let i=1;i<=total;i++) days.push(i)
-
-    function formatDay(day){
-      const d = new Date(month.getFullYear(), month.getMonth(), day)
-      return d.toISOString().slice(0,10)
-    }
-
-    return (
-      <div className="mt-2 p-2 border rounded">
-        <div className="flex items-center justify-between mb-2">
-          <button onClick={()=> setMonth(m=> new Date(m.getFullYear(), m.getMonth()-1, 1))} className="px-2 py-1 rounded border">‹</button>
-          <div className="font-medium">{month.toLocaleString('fr-FR', {month:'long', year:'numeric'})}</div>
-          <button onClick={()=> setMonth(m=> new Date(m.getFullYear(), m.getMonth()+1, 1))} className="px-2 py-1 rounded border">›</button>
-        </div>
-        <div className="grid grid-cols-7 gap-1 text-xs text-center">
-          {['D','L','M','M','J','V','S'].map(h=> <div key={h} className="text-gray-500">{h}</div>)}
-          {Array.from({length: blanks}).map((_,i)=>(<div key={'b'+i}></div>))}
-          {days.map(d=>{
-            const iso = formatDay(d)
-            const sel = selectedDays.includes(iso)
-            return (
-              <button key={iso} onClick={()=>onToggleDay(iso)} className={`p-2 rounded ${sel? 'bg-accent text-white':'hover:bg-gray-100'}`}>
-                {d}
-              </button>
-            )
-          })}
-        </div>
-      </div>
-    )
-  }
-
   const weekRevenue = bookings.reduce((s,b)=> s + (b.price || 0), 0)
 
   return (
     <div className="p-4 max-w-4xl mx-auto">
       <div className="flex items-start justify-between">
         <h1 className="text-2xl font-elegant">Tableau de bord</h1>
-        <button onClick={()=>setOpenSettings(true)} className="text-gray-600" aria-label="Paramètres">⚙️</button>
+        <div></div>{/* Espace réservé pour équilibrer le flex */}
       </div>
 
       <section className="mt-4 bg-white p-4 rounded-xl shadow-soft">
@@ -254,6 +221,10 @@ export default function AdminDashboard(){
             <div className="text-sm text-gray-600">Chiffre (prévisionnel)</div>
             <div className="text-xl font-bold">{weekRevenue} €</div>
           </div>
+          <div className="p-3 bg-green-100 rounded-lg cursor-pointer" onClick={()=> window.location.href='/admin/transactions'}>
+            <div className="text-sm text-gray-600">Facturé</div>
+            <div className="text-xl font-bold">{billedAmount} €</div>
+          </div>
         </div>
 
         <div className="mt-4 flex gap-3">
@@ -263,80 +234,31 @@ export default function AdminDashboard(){
       </section>
 
       <section className="mt-4 bg-white p-4 rounded-xl shadow-soft">
-        <h3 className="font-semibold">Rendez-vous</h3>
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold">Rendez-vous</h3>
+          <button onClick={()=>fetchData()} className="px-3 py-1 rounded-full border text-sm">↻ Rafraîchir</button>
+        </div>
         <div className="mt-2">
           {bookings.map(b=> (
             <div key={b.id} className="p-3 border-b flex items-center justify-between">
               <div>
-                <div className="font-medium">{b.firstName} {b.lastName}</div>
-                <div className="text-sm text-gray-600">{new Date(b.date).toLocaleString()} • {b.serviceTitle}</div>
+                <div className="font-medium">{b.firstName} {b.lastName} <span className="text-sm text-gray-500">{new Date(b.date).toLocaleString()}</span></div>
+                <div className="text-sm text-gray-600">{b.serviceTitle} • {b.duration} min • {b.price} €</div>
               </div>
               <div className="flex flex-col sm:flex-row gap-2 items-center sm:items-end">
-                <button onClick={()=>{
-                  // open edit modal
-                  const toInput = (iso)=>{
-                    if(!iso) return ''
-                    const d = new Date(iso)
-                    const tzOffset = d.getTimezoneOffset()*60000
-                    const local = new Date(d - tzOffset)
-                    return local.toISOString().slice(0,16)
-                  }
-                  setEditForm({
-                    id: b.id,
-                    firstName: b.firstName || '',
-                    lastName: b.lastName || '',
-                    phone: b.phone || '',
-                    email: b.email || '',
-                    datetime: toInput(b.date)
-                  })
-                  const content = (
-                    <div className="grid gap-2">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        <input value={editForm ? editForm.firstName : (b.firstName||'')} onChange={e=>setEditForm(prev=>({... (prev||{}), firstName: e.target.value}))} className="p-2 border rounded" placeholder="Prénom" />
-                        <input value={editForm ? editForm.lastName : (b.lastName||'')} onChange={e=>setEditForm(prev=>({... (prev||{}), lastName: e.target.value}))} className="p-2 border rounded" placeholder="Nom" />
-                      </div>
-                      <input type="datetime-local" value={editForm ? editForm.datetime : ''} onChange={e=>setEditForm(prev=>({... (prev||{}), datetime: e.target.value}))} className="p-2 border rounded" />
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        <input value={editForm ? editForm.phone : (b.phone||'')} onChange={e=>setEditForm(prev=>({... (prev||{}), phone: e.target.value}))} className="p-2 border rounded" placeholder="Téléphone" />
-                        <input value={editForm ? editForm.email : (b.email||'')} onChange={e=>setEditForm(prev=>({... (prev||{}), email: e.target.value}))} className="p-2 border rounded" placeholder="Email" />
-                      </div>
-                    </div>
-                  )
-                  setModal({ open:true, title:`Modifier le rendez-vous`, content, onConfirm: async ()=>{
-                    // prepare payload
-                    if(!editForm) return
-                    const toISO = (localStr)=>{
-                      if(!localStr) return null
-                      const d = new Date(localStr)
-                      // convert local to ISO
-                      const tzOffset = d.getTimezoneOffset()*60000
-                      const iso = new Date(d.getTime() + tzOffset).toISOString()
-                      return iso
-                    }
-                    const payload = {
-                      id: editForm.id,
-                      firstName: editForm.firstName,
-                      lastName: editForm.lastName,
-                      phone: editForm.phone,
-                      email: editForm.email,
-                      date: toISO(editForm.datetime)
-                    }
-                    setLoading(true)
-                    try{
-                      const res = await fetch('/api/bookings', {method:'PUT', headers:{'content-type':'application/json'}, body:JSON.stringify(payload)})
-                      const data = await res.json()
-                      if(res.ok && data.success){
-                        await fetchData()
-                        setToast({open:true,message:'Rendez-vous modifié',type:'success'})
-                        setModal({open:false})
-                      } else {
-                        setToast({open:true,message:data.error||data.message||'Erreur',type:'warning'})
-                      }
-                    }catch(e){ setToast({open:true,message:'Erreur réseau',type:'warning'}) }
-                    setLoading(false)
-                  }, onCancel: ()=> setModal({open:false}) })
-                }} className="w-full sm:w-auto px-2 py-1 text-sm rounded-full border">Modifier</button>
                 <button onClick={()=>cancelBooking(b.id)} className="w-full sm:w-auto px-2 py-1 text-sm rounded-full bg-red-100">Annuler</button>
+                {!paidBookings[b.id] && (
+                  <button onClick={()=>{
+                    const service = services.find(s => s.id === b.serviceId || s.id === b.service_id)
+                    const price = service?.price || b.price || 0
+                    setSelectedBookingForPayment(b)
+                    setPaymentAmount(price.toString())
+                    setOpenPaymentModal(true)
+                  }} className="w-full sm:w-auto px-2 py-1 text-sm rounded-full bg-green-100 text-green-800">Payé !</button>
+                )}
+                {paidBookings[b.id] && (
+                  <span className="px-2 py-1 text-sm bg-green-100 text-green-800 rounded-full">Payé : {paidBookings[b.id]} €</span>
+                )}
                 <button onClick={()=>{
                   const content = (
                     <div>
@@ -346,16 +268,16 @@ export default function AdminDashboard(){
                       {(!b.phone && !b.email) && (<div className="text-sm text-gray-600">Aucun contact fourni</div>)}
                     </div>
                   )
-                  setModal({ open:true, title:`Contact — ${b.firstName} ${b.lastName}`, content, onConfirm: ()=> setModal({open:false}) })
+                  setModal({ open:true, title:`Contact — ${b.firstName} ${b.lastName}`, content, onConfirm: ()=> setModal({open:false}), confirmLabel: 'Fermer' })
                 }} className="w-full sm:w-auto px-2 py-1 text-sm rounded-full border">Contact</button>
               </div>
             </div>
           ))}
         </div>
       </section>
-      {/* Modals & Toasts admin */}
+      {/* Modals & Toasts admin - Updated */}
       {modal?.open && (
-        <Modal open={modal.open} title={modal.title} onConfirm={modal.onConfirm} onCancel={()=>setModal({open:false})} confirmLabel="Enregistrer" cancelLabel="Annuler" type="warning">
+        <Modal open={modal.open} title={modal.title} onConfirm={modal.onConfirm} onCancel={modal.onCancel} confirmLabel={modal.confirmLabel || 'Enregistrer'} cancelLabel={modal.cancelLabel || 'Annuler'} type="warning">
           {modal.content}
         </Modal>
       )}
@@ -375,14 +297,17 @@ export default function AdminDashboard(){
               <span className="px-3 bg-gray-50 text-sm flex items-center">min</span>
             </div>
           </div>
-          <div className="mt-2">
+          <div className="mt-2 flex gap-2">
             <button onClick={async ()=>{
               if(!serviceForm.title) return setToast({open:true,message:'Titre requis',type:'warning'})
-              const res = await fetch('/api/admin/services', {method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify(serviceForm)})
+              const url = serviceForm.id ? `/api/admin/services?id=${serviceForm.id}` : '/api/admin/services'
+              const method = serviceForm.id ? 'PUT' : 'POST'
+              const res = await fetch(url, {method, headers:{'content-type':'application/json'}, body:JSON.stringify(serviceForm)})
               const data = await res.json()
-              if(data.success){ setServiceForm({title:'',price:0,duration:60}); await fetchData(); setToast({open:true,message:'Prestation ajoutée',type:'success'}) }
+              if(data.success){ setServiceForm({title:'',price:0,duration:60, id: null}); await fetchData(); setToast({open:true,message:serviceForm.id ? 'Prestation modifiée' : 'Prestation ajoutée',type:'success'}) }
               else setToast({open:true,message:data.error||'Erreur',type:'warning'})
-            }} className="px-3 py-2 rounded-full btn-accent">Ajouter prestation</button>
+            }} className="px-3 py-2 rounded-full btn-accent">{serviceForm.id ? 'Modifier prestation' : 'Ajouter prestation'}</button>
+            {serviceForm.id && <button onClick={()=>{ setServiceForm({title:'',price:0,duration:60, id: null}); }} className="px-3 py-2 rounded-full border">Annuler</button>}
           </div>
 
           <div className="mt-4 grid gap-2">
@@ -392,7 +317,10 @@ export default function AdminDashboard(){
                   <div className="font-medium">{s.title}</div>
                   <div className="text-sm text-gray-600">{s.price} € • {s.duration} min</div>
                 </div>
-                <div>
+                <div className="flex gap-1">
+                  <button onClick={()=>{ 
+                    setServiceForm({title: s.title, price: s.price, duration: s.duration, id: s.id});
+                  }} className="px-2 py-1 rounded-full border text-sm">Modifier</button>
                   <button onClick={async ()=>{ await fetch('/api/admin/services?id='+s.id, {method:'DELETE'}); await fetchData(); setToast({open:true,message:'Prestation supprimée',type:'success'}) }} className="px-2 py-1 rounded-full border text-sm">Supprimer</button>
                 </div>
               </div>
@@ -445,33 +373,67 @@ export default function AdminDashboard(){
         </div>
       </FullscreenModal>
 
-      {/* Small settings modal for password change */}
-      {openSettings && (
-        <Modal open={openSettings} title="Paramètres" onConfirm={()=>setOpenSettings(false)} onCancel={()=>setOpenSettings(false)} confirmLabel="Fermer">
-          <div className="grid grid-cols-1 gap-2">
-            <input type="password" placeholder="Mot de passe actuel" className="p-2 border rounded" value={currPassword} onChange={e=>setCurrPassword(e.target.value)} />
-            <input type="password" placeholder="Nouveau mot de passe" className="p-2 border rounded" value={newPassword} onChange={e=>setNewPassword(e.target.value)} />
-            <input type="password" placeholder="Confirmer le nouveau mot de passe" className="p-2 border rounded" value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)} />
-            <div className="flex gap-2">
-              <button onClick={async ()=>{
-                if(!currPassword) return setToast({open:true,message:'Mot de passe actuel requis',type:'warning'})
-                if(!newPassword || newPassword.length < 6) return setToast({open:true,message:'Nouveau mot de passe invalide (>=6)',type:'warning'})
-                if(newPassword !== confirmPassword) return setToast({open:true,message:'Les mots de passe ne correspondent pas',type:'warning'})
-                setChangingPwd(true)
-                try{
-                  const res = await fetch('/api/admin/change-password', {method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify({ currentPassword: currPassword, newPassword })})
-                  const text = await res.text()
-                  let data = {}
-                  try{ data = JSON.parse(text) }catch(_){ data = { error: text } }
-                  if(res.ok && data.success){ setCurrPassword(''); setNewPassword(''); setConfirmPassword(''); setToast({open:true,message:'Mot de passe changé',type:'success'}); setOpenSettings(false) }
-                  else setToast({open:true,message:data.error||'Erreur lors du changement de mot de passe',type:'warning'})
-                }catch(e){ setToast({open:true,message:'Erreur réseau — impossible de contacter le serveur',type:'warning'}) }
-                setChangingPwd(false)
-              }} className="px-3 py-2 rounded-full btn-accent">{changingPwd? 'En cours...' : 'Modifier mot de passe'}</button>
+      {/* Fullscreen modal for payment */}
+      <FullscreenModal open={openPaymentModal} title={`Marquer comme payé — ${selectedBookingForPayment?.firstName || ''} ${selectedBookingForPayment?.lastName || ''}`} onClose={()=>{
+                  const modalElement = document.querySelector('.payment-modal')
+                  if(modalElement) {
+                    modalElement.classList.add('payment-modal-exit')
+                    setTimeout(() => setOpenPaymentModal(false), 400)
+                  } else {
+                    setOpenPaymentModal(false)
+                  }
+                }} className="payment-modal">
+        <div className="p-4 flex flex-col h-full justify-between">
+          <div className="flex-1 min-h-0 flex flex-col justify-start items-center space-y-4 pt-8">
+            <div className="w-full max-w-xs flex flex-col items-center gap-6">
+              <button
+                onClick={() => setPaymentAmount(prev => (parseFloat(prev) || 0) + 5)}
+                className="w-20 h-20 bg-pink-200 rounded-full text-5xl hover:bg-pink-300 transition-colors flex items-center justify-center"
+              >
+                +
+              </button>
+              <div className="relative w-full px-4">
+                <label className="block text-sm font-medium mb-3 text-center">Montant payé (€)</label>
+                <input
+                  type="number"
+                  value={paymentAmount}
+                  onChange={(e)=>setPaymentAmount(e.target.value)}
+                  className="p-4 border-2 border-pink-200 rounded-full w-full text-center text-xl font-medium bg-rose-50 appearance-none"
+                  style={{letterSpacing: '2px'}}
+                />
+              </div>
+              <button
+                onClick={() => setPaymentAmount(prev => Math.max(0, (parseFloat(prev) || 0) - 5))}
+                className="w-20 h-20 bg-pink-200 rounded-full text-5xl hover:bg-pink-300 transition-colors flex items-center justify-center"
+              >
+                -
+              </button>
             </div>
           </div>
-        </Modal>
-      )}
+          <div className="p-4 pb-8">
+            <button
+              onClick={()=>{
+                const amount = parseFloat(paymentAmount) || 0
+                if(selectedBookingForPayment){
+                  setPaidBookings(prev => ({...prev, [selectedBookingForPayment.id]: amount}))
+                  setBilledAmount(prev => prev + amount)
+                  const modalElement = document.querySelector('.payment-modal')
+                  if(modalElement) {
+                    modalElement.classList.add('payment-modal-exit')
+                    setTimeout(() => setOpenPaymentModal(false), 400)
+                  } else {
+                    setOpenPaymentModal(false)
+                  }
+                  setToast({open: true, message: `Montant de ${amount} € enregistré`, type: 'success'})
+                }
+              }}
+              className="w-full py-3 rounded-full btn-accent text-lg font-medium"
+            >
+              Accepter le paiement
+            </button>
+          </div>
+        </div>
+      </FullscreenModal>
 
       {/* Section planning retirée du dashboard admin (contrôle centralisé via verrous) */}
 
@@ -482,6 +444,56 @@ export default function AdminDashboard(){
       {/* Password change moved to small settings modal */}
 
       {/* Inline verrouillages supprimée — accessible via la modale "Vérouillage planning" */}
+      <style jsx global>{`
+        .payment-modal {
+          animation: slideUp 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+        .payment-modal-exit {
+          animation: slideDown 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+        @keyframes slideUp {
+          from {
+            opacity: 0;
+            transform: translateY(100%);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        @keyframes slideDown {
+          from {
+            opacity: 1;
+            transform: translateY(0);
+          }
+          to {
+            opacity: 0;
+            transform: translateY(100%);
+          }
+        }
+        /* Masquer les boutons natifs des inputs number */
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+          -webkit-appearance: none;
+          appearance: none;
+          margin: 0;
+          display: none;
+        }
+        input[type="number"] {
+          -moz-appearance: textfield;
+          appearance: textfield;
+        }
+      `}</style>
+      {/* Bouton retour au dashboard */}
+      <div className="fixed bottom-6 right-6 z-50">
+        <button
+          onClick={() => window.location.href = '/admin'}
+          className="w-16 h-16 bg-white rounded-full shadow-lg flex items-center justify-center text-2xl hover:bg-gray-50 transition-colors"
+          aria-label="Retour au dashboard"
+        >
+          🏠
+        </button>
+      </div>
     </div>
   )
 }

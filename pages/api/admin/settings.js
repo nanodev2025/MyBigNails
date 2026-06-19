@@ -1,5 +1,6 @@
 import fs from 'fs'
 import path from 'path'
+import { requireAdmin } from '../../../lib/auth'
 
 const settingsPath = path.resolve(process.cwd(), 'data', 'settings.json')
 
@@ -12,6 +13,8 @@ export default function handler(req,res){
     return res.status(200).json(read())
   }
   if(req.method === 'POST'){
+    const decoded = requireAdmin(req,res)
+    if(!decoded) return
     const body = req.body
     fs.writeFileSync(settingsPath, JSON.stringify(body, null, 2))
     return res.status(200).json({success:true})

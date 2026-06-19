@@ -29,5 +29,26 @@ export default async function handler(req,res){
     return res.status(200).json({ success:true })
   }
 
+  if(req.method === 'PUT'){
+    const { id } = req.query
+    const body = req.body
+    if(!id) return res.status(400).json({ success:false, error:'id required' })
+    if(!body || !body.title) return res.status(400).json({ success:false, error:'title required' })
+    
+    const arr = read()
+    const index = arr.findIndex(s => s.id === id)
+    if(index === -1) return res.status(404).json({ success:false, error:'service not found' })
+    
+    const updatedService = { 
+      id: id, 
+      title: body.title, 
+      price: body.price || arr[index].price, 
+      duration: body.duration || arr[index].duration 
+    }
+    arr[index] = updatedService
+    write(arr)
+    return res.status(200).json({ success:true, item: updatedService })
+  }
+
   res.status(405).end()
 }

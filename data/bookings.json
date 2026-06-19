@@ -1,13 +1,14 @@
 [
   {
-    "id": "b_2c8czz5",
-    "serviceId": "s_chablon",
-    "serviceTitle": "Pose complète chablon",
-    "price": 60,
-    "date": "2026-06-21T13:00:00.000Z",
+    "id": "b_sg7iwh9",
+    "serviceId": "s_coupe",
+    "serviceTitle": "Coupe de cheveux",
+    "price": 35,
+    "date": "2026-06-19T13:00:00.000Z",
     "firstName": "chris",
-    "lastName": "beauchereau",
+    "lastName": "",
     "phone": "0644201485",
-    "status": "confirmed"
+    "email": "",
+    "status": "pending"
   }
 ]
