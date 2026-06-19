@@ -235,7 +235,6 @@ export default function BookingCalendar({ services }){
               ))}
             </div>
           )}
-          </div>
 
           {selectedSlot && (
             <div className="mt-4">
