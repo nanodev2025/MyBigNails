@@ -1,4 +1,5 @@
 import Head from 'next/head'
+import styles from '../styles/Calendar.module.css'
 import { useEffect, useState } from 'react'
 import Header from '../components/Header'
 import ServiceCard from '../components/ServiceCard'
