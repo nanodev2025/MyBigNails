@@ -17,7 +17,7 @@ export default function Home(){
   return (
     <div>
       <Head>
-        <title>Studio Ongles - Prendre Rendez-vous</title>
+        <title>Studio Beauté - Prendre Rendez-vous</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
 
@@ -26,8 +26,8 @@ export default function Home(){
       <main className="p-4 max-w-3xl mx-auto">
         {carouselImages.length > 0 && <Carousel images={carouselImages} />}
         <section className="mt-6 bg-white rounded-xl shadow-soft p-6">
-          <h1 className="text-2xl font-elegant">Studio Doux Ongles</h1>
-          <p className="mt-2 text-sm text-gray-600">Pose élégante, soin personnalisé — prenez rendez-vous en quelques clics.</p>
+          <h1 className="text-2xl font-elegant">Studio Beauté & Bien-être</h1>
+          <p className="mt-2 text-sm text-gray-600">Soins esthétiques et bien-être — prenez rendez-vous en quelques clics.</p>
           <div className="mt-4">
             <BookingCalendar services={services} />
           </div>

@@ -1,0 +1,15 @@
+# Ne pas indexer les dépendances géantes
+node_modules/
+bower_components/
+
+# Ne pas indexer les builds et caches
+dist/
+build/
+.next/
+.out/
+.cache/
+
+# Fichiers système et Git
+.git/
+.DS_Store
+*.log
