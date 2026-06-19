@@ -1,6 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import { sanitizeText } from '../../lib/sanitize'
+import { createClient } from '@supabase/supabase-js'
 
 // simple in-memory rate limiter per IP
 const RATE_WINDOW_MS = 10 * 60 * 1000 // 10 minutes
@@ -10,12 +11,26 @@ const rateMap = global._booking_rate_map || (global._booking_rate_map = new Map(
 const bookingsPath = path.resolve(process.cwd(), 'data', 'bookings.json')
 const servicesPath = path.resolve(process.cwd(), 'data', 'services.json')
 
+const SUPABASE_URL = process.env.SUPABASE_URL
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY
+const supabase = SUPABASE_URL && SUPABASE_KEY ? createClient(SUPABASE_URL, SUPABASE_KEY) : null
+
 function readJSON(p){
   try{ return JSON.parse(fs.readFileSync(p,'utf-8')) } catch(e){ return [] }
 }
 
 export default async function handler(req,res){
   if(req.method === 'GET'){
+    if(supabase){
+      try{
+        const { data, error } = await supabase.from('bookings').select('*').order('date', { ascending: true })
+        if(error) throw error
+        return res.status(200).json(data)
+      }catch(err){
+        console.error('Supabase GET bookings error', err && err.message)
+        // fallback to local file
+      }
+    }
     const bookings = readJSON(bookingsPath)
     return res.status(200).json(bookings)
   }
@@ -29,34 +44,79 @@ export default async function handler(req,res){
     recent.push(now)
     rateMap.set(ip, recent)
 
-    const body = req.body
+    const body = req.body || {}
     // sanitize inputs
-    body.firstName = sanitizeText(body.firstName)
-    body.lastName = sanitizeText(body.lastName)
-    body.phone = sanitizeText(body.phone)
-    body.email = sanitizeText(body.email)
-    const bookings = readJSON(bookingsPath)
-    const services = readJSON(servicesPath)
-    const service = services.find(s=> s.id === body.serviceId)
+    const firstName = sanitizeText(body.firstName)
+    const lastName = sanitizeText(body.lastName)
+    const phone = sanitizeText(body.phone)
+    const email = sanitizeText(body.email)
+    const serviceId = body.serviceId
     const date = new Date(body.date)
 
-    // conflit si timestamp identique
-    if(bookings.some(b=> new Date(b.date).getTime() === date.getTime())){
-      return res.status(400).json({success:false, message:'Créneau déjà réservé'})
+    if(isNaN(date.getTime())) return res.status(400).json({ success:false, error: 'Date invalide' })
+
+    // load services (from supabase or local)
+    let service = null
+    if(supabase){
+      try{
+        const { data: svs, error: svError } = await supabase.from('services').select('*')
+        if(!svError) service = svs.find(s=> s.id === serviceId)
+      }catch(e){ console.error('Supabase services read error', e && e.message) }
+    }
+    if(!service){
+      const services = readJSON(servicesPath)
+      service = services.find(s=> s.id === serviceId) || null
     }
 
+    // conflict check
+    if(supabase){
+      try{
+        const { data: exists, error: exErr } = await supabase.from('bookings').select('id').eq('date', date.toISOString()).limit(1)
+        if(exErr) throw exErr
+        if(exists && exists.length) return res.status(400).json({ success:false, message:'Créneau déjà réservé' })
+      }catch(e){ console.error('Supabase conflict check error', e && e.message) }
+    } else {
+      const bookingsLocal = readJSON(bookingsPath)
+      if(bookingsLocal.some(b=> new Date(b.date).getTime() === date.getTime())) return res.status(400).json({success:false, message:'Créneau déjà réservé'})
+    }
+
+    const bookingItem = {
+      service_id: serviceId,
+      service_title: service ? (service.title || service.service_title) : '—',
+      price: service ? (service.price || 0) : 0,
+      date: date.toISOString(),
+      first_name: firstName || '',
+      last_name: lastName || '',
+      phone: phone || '',
+      email: email || '',
+      status: 'pending'
+    }
+
+    if(supabase){
+      try{
+        const { data, error } = await supabase.from('bookings').insert([bookingItem]).select().single()
+        if(error) throw error
+        return res.status(200).json({ success:true, booking: data })
+      }catch(err){
+        console.error('Supabase insert booking error', err && err.message)
+        return res.status(500).json({ success:false, error: String(err.message || err) })
+      }
+    }
+
+    // fallback local file (dev)
+    const bookings = readJSON(bookingsPath)
     const id = 'b_' + Math.random().toString(36).slice(2,9)
     const booking = {
       id,
-      serviceId: body.serviceId,
-      serviceTitle: service ? service.title : '—',
-      price: service ? service.price : 0,
-      date: date.toISOString(),
-      firstName: body.firstName || '',
-      lastName: body.lastName || '',
-      phone: body.phone || '',
-      email: body.email || '',
-      status: 'pending'
+      serviceId: serviceId,
+      serviceTitle: bookingItem.service_title,
+      price: bookingItem.price,
+      date: bookingItem.date,
+      firstName: bookingItem.first_name,
+      lastName: bookingItem.last_name,
+      phone: bookingItem.phone,
+      email: bookingItem.email,
+      status: bookingItem.status
     }
     bookings.push(booking)
     try{
@@ -73,6 +133,16 @@ export default async function handler(req,res){
     const { requireAdmin } = await import('../../lib/auth')
     if(!requireAdmin(req,res)) return
     const body = req.body
+    if(supabase){
+      try{
+        const { data, error } = await supabase.from('bookings').update(body).eq('id', body.id).select().single()
+        if(error) throw error
+        return res.status(200).json({ success:true, booking: data })
+      }catch(err){
+        console.error('Supabase update booking error', err && err.message)
+        return res.status(500).json({ success:false, error: String(err.message || err) })
+      }
+    }
     const bookings = readJSON(bookingsPath)
     const idx = bookings.findIndex(b=> b.id === body.id)
     if(idx === -1) return res.status(404).json({error:'Not found'})
@@ -90,6 +160,16 @@ export default async function handler(req,res){
     const { requireAdmin } = await import('../../lib/auth')
     if(!requireAdmin(req,res)) return
     const id = req.query.id
+    if(supabase){
+      try{
+        const { error } = await supabase.from('bookings').delete().eq('id', id)
+        if(error) throw error
+        return res.status(200).json({ success:true })
+      }catch(err){
+        console.error('Supabase delete booking error', err && err.message)
+        return res.status(500).json({ success:false, error: String(err.message || err) })
+      }
+    }
     let bookings = readJSON(bookingsPath)
     bookings = bookings.filter(b=> b.id !== id)
     try{
