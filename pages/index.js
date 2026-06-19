@@ -15,23 +15,6 @@ export default function Home(){
   },[])
 
   return (
-import Head from 'next/head'
-import { useEffect, useState } from 'react'
-import Header from '../components/Header'
-import ServiceCard from '../components/ServiceCard'
-import BookingCalendar from '../components/BookingCalendar'
-import Carousel from '../components/Carousel'
-
-export default function Home(){
-  const [services, setServices] = useState([])
-  const [carouselImages, setCarouselImages] = useState([])
-
-  useEffect(()=>{
-    fetch('/api/services').then(r=>r.json()).then(setServices)
-    fetch('/api/carousel').then(r=>r.json()).then(setCarouselImages)
-  },[])
-
-  return (
     <div>
       <Head>
         <title>Studio Beauté - Prendre Rendez-vous</title>
