@@ -19,6 +19,7 @@ export default function AdminDashboard(){
   const [serviceForm, setServiceForm] = useState({title:'', price:0, duration:60})
   const [currPassword, setCurrPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [changingPwd, setChangingPwd] = useState(false)
   const [openServices, setOpenServices] = useState(false)
   const [openBlocks, setOpenBlocks] = useState(false)
@@ -358,21 +359,25 @@ export default function AdminDashboard(){
 
       {/* Small settings modal for password change */}
       {openSettings && (
-        <Modal open={openSettings} title="Paramètres" onConfirm={()=>setOpenSettings(false)} onCancel={()=>setOpenSettings(false)} confirmLabel="Close">
+        <Modal open={openSettings} title="Paramètres" onConfirm={()=>setOpenSettings(false)} onCancel={()=>setOpenSettings(false)} confirmLabel="Fermer">
           <div className="grid grid-cols-1 gap-2">
             <input type="password" placeholder="Mot de passe actuel" className="p-2 border rounded" value={currPassword} onChange={e=>setCurrPassword(e.target.value)} />
             <input type="password" placeholder="Nouveau mot de passe" className="p-2 border rounded" value={newPassword} onChange={e=>setNewPassword(e.target.value)} />
+            <input type="password" placeholder="Confirmer le nouveau mot de passe" className="p-2 border rounded" value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)} />
             <div className="flex gap-2">
               <button onClick={async ()=>{
                 if(!currPassword) return setToast({open:true,message:'Mot de passe actuel requis',type:'warning'})
                 if(!newPassword || newPassword.length < 6) return setToast({open:true,message:'Nouveau mot de passe invalide (>=6)',type:'warning'})
+                if(newPassword !== confirmPassword) return setToast({open:true,message:'Les mots de passe ne correspondent pas',type:'warning'})
                 setChangingPwd(true)
                 try{
                   const res = await fetch('/api/admin/change-password', {method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify({ currentPassword: currPassword, newPassword })})
-                  const data = await res.json()
-                  if(res.ok && data.success){ setCurrPassword(''); setNewPassword(''); setToast({open:true,message:'Mot de passe changé',type:'success'}); setOpenSettings(false) }
-                  else setToast({open:true,message:data.error||'Erreur',type:'warning'})
-                }catch(e){ setToast({open:true,message:'Erreur réseau',type:'warning'}) }
+                  const text = await res.text()
+                  let data = {}
+                  try{ data = JSON.parse(text) }catch(_){ data = { error: text } }
+                  if(res.ok && data.success){ setCurrPassword(''); setNewPassword(''); setConfirmPassword(''); setToast({open:true,message:'Mot de passe changé',type:'success'}); setOpenSettings(false) }
+                  else setToast({open:true,message:data.error||'Erreur lors du changement de mot de passe',type:'warning'})
+                }catch(e){ setToast({open:true,message:'Erreur réseau — impossible de contacter le serveur',type:'warning'}) }
                 setChangingPwd(false)
               }} className="px-3 py-2 rounded-full btn-accent">{changingPwd? 'En cours...' : 'Modifier mot de passe'}</button>
             </div>
