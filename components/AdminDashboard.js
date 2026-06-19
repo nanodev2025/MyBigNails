@@ -38,7 +38,20 @@ export default function AdminDashboard(){
   },[openServices, openBlocks, openSettings, modal])
 
   async function fetchData(){
-    const bk = await fetch('/api/bookings').then(r=>r.json())
+    const bkRaw = await fetch('/api/bookings').then(r=>r.json())
+    // normalize booking fields (support camelCase and snake_case from Supabase)
+    const bk = (bkRaw || []).map(b=> ({
+      id: b.id || b.uuid || b.ID,
+      serviceId: b.serviceId || b.service_id || b.service_id,
+      serviceTitle: b.serviceTitle || b.service_title || b.service_title || b.serviceTitle,
+      price: b.price || b.price || 0,
+      date: b.date || b.date,
+      firstName: b.firstName || b.first_name || b.first_name || '',
+      lastName: b.lastName || b.last_name || b.last_name || '',
+      phone: b.phone || b.phone || '',
+      email: b.email || b.email || '',
+      status: b.status || b.status || 'pending'
+    }))
     const st = await fetch('/api/admin/settings').then(r=>r.json())
     const car = await fetch('/api/carousel').then(r=>r.json())
     const bl = await fetch('/api/admin/blocks').then(r=>r.json())
@@ -260,6 +273,17 @@ export default function AdminDashboard(){
               <div className="flex flex-col sm:flex-row gap-2 items-center sm:items-end">
                 <button onClick={()=>updateStatus(b.id,'confirmed')} className="w-full sm:w-auto px-2 py-1 text-sm rounded-full bg-green-100">Valider</button>
                 <button onClick={()=>cancelBooking(b.id)} className="w-full sm:w-auto px-2 py-1 text-sm rounded-full bg-red-100">Annuler</button>
+                <button onClick={()=>{
+                  const content = (
+                    <div>
+                      <div className="font-medium mb-2">Contact</div>
+                      {b.phone ? (<div className="mb-1"><a href={`tel:${b.phone}`} className="text-pink-600">Téléphone: {b.phone}</a></div>) : null}
+                      {b.email ? (<div className="mb-1"><a href={`mailto:${b.email}`} className="text-pink-600">Email: {b.email}</a></div>) : null}
+                      {(!b.phone && !b.email) && (<div className="text-sm text-gray-600">Aucun contact fourni</div>)}
+                    </div>
+                  )
+                  setModal({ open:true, title:`Contact — ${b.firstName} ${b.lastName}`, content, onConfirm: ()=> setModal({open:false}), onCancel: ()=> setModal({open:false}) })
+                }} className="w-full sm:w-auto px-2 py-1 text-sm rounded-full border">Contact</button>
               </div>
             </div>
           ))}
