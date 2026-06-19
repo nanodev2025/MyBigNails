@@ -118,8 +118,6 @@ export default function BookingCalendar({ services }){
   }
 
   const animClass = direction===1 ? 'animate-slide-in-left' : 'animate-slide-in-right'
-  // Mobile: horizontal scroll (flex row, touch-scroll). Desktop (sm): grid with 7 cols.
-  const gridClass = 'flex gap-2 mt-3 overflow-x-auto touch-scroll sm:grid sm:grid-cols-7 sm:overflow-visible ' + animClass
 
   const [isDesktop, setIsDesktop] = useState(false)
   useEffect(()=>{
@@ -176,10 +174,10 @@ export default function BookingCalendar({ services }){
 
           {/* Desktop : 7 jours fixes */}
           {isDesktop ? (
-            <div className="overflow-hidden max-w-full">
-              <div className="flex gap-2 mt-3 w-[calc(7*124px)]">
+            <div className="max-w-full w-full">
+              <div className="flex gap-2 mt-3 w-full flex-wrap">
                 {visibleDays.map(d => (
-                  <div data-day key={d.toDateString()} className="min-w-[120px] p-2 bg-nude rounded-lg text-center">
+                  <div data-day key={d.toDateString()} className="min-w-[100px] flex-1 p-2 bg-nude rounded-lg text-center">
                     <div className="text-xs">{d.toLocaleDateString(undefined, { weekday: 'short' })}</div>
                     <div className="text-sm font-semibold">{d.getDate()}</div>
                     <div className="mt-2">
@@ -203,17 +201,9 @@ export default function BookingCalendar({ services }){
             </div>
           ) : (
             /* Mobile : scroll horizontal */
-            <div ref={daysContainerRef} className="flex gap-2 mt-3 overflow-x-auto touch-scroll" key={animKey} onScroll={(e) => {
-              const el = e.currentTarget;
-              try {
-                const itemWidth = el.querySelector('[data-day]')?.offsetWidth || 120;
-                const firstIdx = Math.round(el.scrollLeft / itemWidth);
-                if (firstIdx >= 0) setVisibleIndex(firstIdx);
-              } catch(err) {}
-              if (el.scrollLeft + el.clientWidth >= el.scrollWidth - 40) appendDays(14);
-            }}>
+            <div ref={daysContainerRef} className="flex gap-2 mt-3 w-full flex-wrap" key={animKey}>
               {loadedDays.map(d => (
-                <div data-day key={d.toDateString()} className="inline-block min-w-[120px] p-2 bg-nude rounded-lg text-center">
+                <div data-day key={d.toDateString()} className="min-w-[100px] flex-1 p-2 bg-nude rounded-lg text-center">
                   <div className="text-xs">{d.toLocaleDateString(undefined, { weekday: 'short' })}</div>
                   <div className="text-sm font-semibold">{d.getDate()}</div>
                   <div className="mt-2">
