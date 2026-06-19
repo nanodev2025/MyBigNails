@@ -174,31 +174,67 @@ export default function BookingCalendar({ services }){
 
           <div className="text-sm text-gray-600">Choisissez une date et un créneau</div>
 
-          <div ref={daysContainerRef} className={gridClass} key={animKey} onScroll={(e) => {
-            const el = e.currentTarget
-            try{
-              const itemWidth = el.querySelector('[data-day]')?.offsetWidth || 120
-              const firstIdx = Math.round(el.scrollLeft / itemWidth)
-              if(firstIdx >= 0) setVisibleIndex(firstIdx)
-            } catch(err){}
-            if(el.scrollLeft + el.clientWidth >= el.scrollWidth - 40) appendDays(14)
-          }}>
-            {(isDesktop ? loadedDays.slice(viewStartIndex, viewStartIndex+7) : loadedDays).map(d => (
-              <div data-day key={d.toDateString()} className="inline-block min-w-[120px] p-2 bg-nude rounded-lg text-center sm:block">
-                <div className="text-xs">{d.toLocaleDateString(undefined,{weekday:'short'})}</div>
-                <div className="text-sm font-semibold">{d.getDate()}</div>
-                <div className="mt-2">
-                  {generateSlots(d).map((slot, i) => {
-                    const blocked = isTaken(slot) || isBlocked(slot)
-                    return (
-                      <button key={i} disabled={blocked} onClick={()=>{ if(!blocked) setSelectedSlot(slot) }} className={'m-1 p-1 px-2 rounded-full text-xs ' + (blocked ? 'bg-gray-200 text-gray-400 ' : 'bg-beige-warm ') + (selectedSlot && selectedSlot.getTime()===slot.getTime() ? 'ring-2 ring-accent' : '')}>
-                        {slot.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
-                      </button>
-                    )
-                  })}
-                </div>
+          {/* Desktop : 7 jours fixes */}
+          {isDesktop ? (
+            <div className="overflow-hidden max-w-full">
+              <div className="flex gap-2 mt-3 w-[calc(7*124px)]">
+                {visibleDays.map(d => (
+                  <div data-day key={d.toDateString()} className="min-w-[120px] p-2 bg-nude rounded-lg text-center">
+                    <div className="text-xs">{d.toLocaleDateString(undefined, { weekday: 'short' })}</div>
+                    <div className="text-sm font-semibold">{d.getDate()}</div>
+                    <div className="mt-2">
+                      {generateSlots(d).map((slot, i) => {
+                        const blocked = isTaken(slot) || isBlocked(slot);
+                        return (
+                          <button
+                            key={i}
+                            disabled={blocked}
+                            onClick={() => { if (!blocked) setSelectedSlot(slot); }}
+                            className={'m-1 p-1 px-2 rounded-full text-xs ' + (blocked ? 'bg-gray-200 text-gray-400 ' : 'bg-beige-warm ') + (selectedSlot && selectedSlot.getTime() === slot.getTime() ? 'ring-2 ring-accent' : '')}
+                          >
+                            {slot.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
+            </div>
+          ) : (
+            /* Mobile : scroll horizontal */
+            <div ref={daysContainerRef} className="flex gap-2 mt-3 overflow-x-auto touch-scroll" key={animKey} onScroll={(e) => {
+              const el = e.currentTarget;
+              try {
+                const itemWidth = el.querySelector('[data-day]')?.offsetWidth || 120;
+                const firstIdx = Math.round(el.scrollLeft / itemWidth);
+                if (firstIdx >= 0) setVisibleIndex(firstIdx);
+              } catch(err) {}
+              if (el.scrollLeft + el.clientWidth >= el.scrollWidth - 40) appendDays(14);
+            }}>
+              {loadedDays.map(d => (
+                <div data-day key={d.toDateString()} className="inline-block min-w-[120px] p-2 bg-nude rounded-lg text-center">
+                  <div className="text-xs">{d.toLocaleDateString(undefined, { weekday: 'short' })}</div>
+                  <div className="text-sm font-semibold">{d.getDate()}</div>
+                  <div className="mt-2">
+                    {generateSlots(d).map((slot, i) => {
+                      const blocked = isTaken(slot) || isBlocked(slot);
+                      return (
+                        <button
+                          key={i}
+                          disabled={blocked}
+                          onClick={() => { if (!blocked) setSelectedSlot(slot); }}
+                          className={'m-1 p-1 px-2 rounded-full text-xs ' + (blocked ? 'bg-gray-200 text-gray-400 ' : 'bg-beige-warm ') + (selectedSlot && selectedSlot.getTime() === slot.getTime() ? 'ring-2 ring-accent' : '')}
+                        >
+                          {slot.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
           </div>
 
           {selectedSlot && (
