@@ -7,8 +7,6 @@ export default function App({ Component, pageProps }){
     <>
       <Head>
         <link rel="icon" href="/favicon.svg" />
-        {/* Viewport with safe area handling */}
-        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         {/* Security headers */}
         <meta httpEquiv="X-Content-Type-Options" content="nosniff" />
         <meta httpEquiv="X-Frame-Options" content="DENY" />

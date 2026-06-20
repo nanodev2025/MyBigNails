@@ -15,15 +15,15 @@ export default function Home(){
   },[])
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div>
       <Head>
         <title>Studio Beauté - Prendre Rendez-vous</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
 
       <Header />
 
-      <main className="p-4 max-w-3xl mx-auto flex-1 pb-safe">
+      <main className="p-4 max-w-3xl mx-auto">
         {carouselImages.length > 0 && <Carousel images={carouselImages} />}
         <section className="mt-6 bg-white rounded-xl shadow-soft p-6">
           <h1 className="text-2xl font-elegant">Studio Beauté & Bien-être</h1>

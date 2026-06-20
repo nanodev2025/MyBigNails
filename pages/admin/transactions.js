@@ -70,7 +70,7 @@ export default function TransactionsPage() {
   })
   
   return (
-    <div className="min-h-screen bg-gray-50 pt-safe">
+    <div className="min-h-screen bg-gray-50">
       <Head>
         <title>Historique des transactions - Nail'Art</title>
       </Head>
