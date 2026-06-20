@@ -10,6 +10,8 @@ export default function BookingCalendar({ services }){
   const [loadedDays, setLoadedDays] = useState([]) // days loaded into the planner
   const [visibleIndex, setVisibleIndex] = useState(0) // first visible day index (for mobile scroll)
   const daysContainerRef = useRef(null)
+  const planningRef = useRef(null)
+  const formRef = useRef(null)
   const [selectedSlot, setSelectedSlot] = useState(null)
   const [form, setForm] = useState({firstName:'', lastName:'', phone:'', email:''})
   const [errors, setErrors] = useState({firstName:'', lastName:'', phone:'', email:''})
@@ -198,7 +200,10 @@ export default function BookingCalendar({ services }){
     <div>
       <div className="flex gap-2 overflow-x-auto p-2.5">
         {services.map(s => (
-          <button key={s.id} onClick={()=>setSelectedService(s)} className={'flex-1 p-3 rounded-xl ' + (selectedService?.id===s.id ? 'ring-2 ring-accent ' : '') + 'bg-white shadow-soft'}>
+          <button key={s.id} onClick={()=>{
+            setSelectedService(s)
+            setTimeout(() => planningRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
+          }} className={'flex-1 p-3 rounded-xl ' + (selectedService?.id===s.id ? 'ring-2 ring-accent ' : '') + 'bg-white shadow-soft'}>
             <div className="font-elegant">{s.title}</div>
             <div className="text-sm text-gray-500">{s.duration} min • {s.price}€</div>
           </button>
@@ -207,7 +212,7 @@ export default function BookingCalendar({ services }){
 
       {/* Planning: affiché uniquement si une prestation est sélectionnée */}
       {selectedService && (
-        <div className="mt-4 bg-white p-4 rounded-xl shadow-soft">
+        <div ref={planningRef} className="mt-4 bg-white p-4 rounded-xl shadow-soft">
           <div className="flex items-center justify-between mb-2 max-w-3xl mx-auto">
             <div className="hidden sm:flex justify-start">
               <button onClick={() => {
@@ -247,7 +252,12 @@ export default function BookingCalendar({ services }){
                           <button
                             key={i}
                             disabled={blocked}
-                            onClick={() => { if (!blocked) setSelectedSlot(slot); }}
+                            onClick={() => { 
+                              if (!blocked) {
+                                setSelectedSlot(slot)
+                                setTimeout(() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
+                              }
+                            }}
                             className={'m-1 p-1 px-2 rounded-full text-xs w-full ' + (blocked ? 'bg-gray-200 text-gray-400 ' : 'bg-beige-warm ') + (selectedSlot && selectedSlot.getTime() === slot.getTime() ? 'ring-2 ring-accent' : '')}
                           >
                             {slot.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -287,28 +297,36 @@ export default function BookingCalendar({ services }){
           )}
 
           {selectedSlot && (
-            <div className="mt-4">
+            <div ref={formRef} className="mt-4">
               <h4 className="font-elegant">Confirmation</h4>
               <div className="text-sm text-gray-600">Prestation: {selectedService?.title || '—'}</div>
               <div className="text-sm">Créneau: {selectedSlot.toLocaleString()}</div>
 
-              <div className="mt-3 flex flex-col gap-2">
-                {/* Prénom ou Nom */}
-                <div className="flex flex-col items-center gap-1">
-                  {errors.firstName && <div className="text-red-500 text-sm w-full text-center">{errors.firstName}</div>}
-                  <input className="flex-1 p-2 rounded border w-full" placeholder="Prénom" value={form.firstName} onChange={e=>setForm(f=>({...f, firstName:e.target.value}))} />
-                  <span className="text-gray-500 text-sm">ou</span>
-                  {errors.lastName && <div className="text-red-500 text-sm w-full text-center">{errors.lastName}</div>}
-                  <input className="flex-1 p-2 rounded border w-full" placeholder="Nom" value={form.lastName} onChange={e=>setForm(f=>({...f, lastName:e.target.value}))} />
+              <div className="mt-3 flex flex-col gap-3">
+                {/* Prénom ou Nom - Desktop: ligne, Mobile: colonne */}
+                <div className="flex flex-col sm:flex-row items-center gap-1 sm:gap-4">
+                  <div className="flex-1 w-full sm:w-auto">
+                    {errors.firstName && <div className="text-red-500 text-sm text-center">{errors.firstName}</div>}
+                    <input className="p-2 rounded border w-full" placeholder="Prénom" value={form.firstName} onChange={e=>setForm(f=>({...f, firstName:e.target.value}))} />
+                  </div>
+                  <span className="text-gray-500 text-sm hidden sm:block">ou</span>
+                  <div className="flex-1 w-full sm:w-auto">
+                    {errors.lastName && <div className="text-red-500 text-sm text-center">{errors.lastName}</div>}
+                    <input className="p-2 rounded border w-full" placeholder="Nom" value={form.lastName} onChange={e=>setForm(f=>({...f, lastName:e.target.value}))} />
+                  </div>
                 </div>
                 
-                {/* Téléphone ou Email */}
-                <div className="flex flex-col items-center gap-1">
-                  {errors.phone && <div className="text-red-500 text-sm w-full text-center">{errors.phone}</div>}
-                  <input className="flex-1 p-2 rounded border w-full" placeholder="Téléphone" value={form.phone} onChange={e=>setForm(f=>({...f, phone:e.target.value}))} />
-                  <span className="text-gray-500 text-sm">ou</span>
-                  {errors.email && <div className="text-red-500 text-sm w-full text-center">{errors.email}</div>}
-                  <input className="flex-1 p-2 rounded border w-full" placeholder="Email" value={form.email} onChange={e=>setForm(f=>({...f, email:e.target.value}))} />
+                {/* Téléphone ou Email - Desktop: ligne, Mobile: colonne */}
+                <div className="flex flex-col sm:flex-row items-center gap-1 sm:gap-4">
+                  <div className="flex-1 w-full sm:w-auto">
+                    {errors.phone && <div className="text-red-500 text-sm text-center">{errors.phone}</div>}
+                    <input className="p-2 rounded border w-full" placeholder="Téléphone" value={form.phone} onChange={e=>setForm(f=>({...f, phone:e.target.value}))} />
+                  </div>
+                  <span className="text-gray-500 text-sm hidden sm:block">ou</span>
+                  <div className="flex-1 w-full sm:w-auto">
+                    {errors.email && <div className="text-red-500 text-sm text-center">{errors.email}</div>}
+                    <input className="p-2 rounded border w-full" placeholder="Email" value={form.email} onChange={e=>setForm(f=>({...f, email:e.target.value}))} />
+                  </div>
                 </div>
               </div>
 
