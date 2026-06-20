@@ -1,6 +1,8 @@
 node_modules/
 .next/
-.env*
+.env*.local
+.env*.prod
+.env*.dev
 .DS_Store
 /.idea/
 .vscode/
@@ -10,4 +12,7 @@ coverage/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Keep example files
+!.env.local.example
 package-lock.json

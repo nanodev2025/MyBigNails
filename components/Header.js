@@ -1,10 +1,10 @@
 import Link from 'next/link'
 
-// Header simple et mobile-first
+// Header simple et mobile-first avec support des notch
 export default function Header(){
   return (
-    <header className="bg-white p-4 shadow-soft">
-      <div className="max-w-3xl mx-auto flex items-center justify-between">
+    <header className="bg-white shadow-soft">
+      <div className="max-w-3xl mx-auto flex items-center justify-between p-4">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-full bg-nude flex items-center justify-center">💅</div>
           <div>

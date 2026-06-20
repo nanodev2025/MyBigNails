@@ -13,6 +13,10 @@ const servicesPath = path.resolve(process.cwd(), 'data', 'services.json')
 
 const SUPABASE_URL = process.env.SUPABASE_URL
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY
+
+// Mask sensitive keys in error messages
+const maskedSupabaseKey = SUPABASE_KEY ? `${SUPABASE_KEY.substring(0, 4)}...${SUPABASE_KEY.slice(-4)}` : null
+
 const supabase = SUPABASE_URL && SUPABASE_KEY ? createClient(SUPABASE_URL, SUPABASE_KEY) : null
 
 function readJSON(p){

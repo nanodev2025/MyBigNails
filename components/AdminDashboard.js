@@ -262,7 +262,6 @@ export default function AdminDashboard(){
                 <button onClick={()=>{
                   const content = (
                     <div>
-                      <div className="font-medium mb-2">Contact</div>
                       {b.phone ? (<div className="mb-1"><a href={`tel:${b.phone}`} className="text-pink-600">Téléphone: {b.phone}</a></div>) : null}
                       {b.email ? (<div className="mb-1"><a href={`mailto:${b.email}`} className="text-pink-600">Email: {b.email}</a></div>) : null}
                       {(!b.phone && !b.email) && (<div className="text-sm text-gray-600">Aucun contact fourni</div>)}

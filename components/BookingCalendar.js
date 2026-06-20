@@ -12,6 +12,7 @@ export default function BookingCalendar({ services }){
   const daysContainerRef = useRef(null)
   const [selectedSlot, setSelectedSlot] = useState(null)
   const [form, setForm] = useState({firstName:'', lastName:'', phone:'', email:''})
+  const [errors, setErrors] = useState({firstName:'', lastName:'', phone:'', email:''})
   const [blocks, setBlocks] = useState([])
   const [loading, setLoading] = useState(false)
   const [animKey, setAnimKey] = useState(0)
@@ -124,24 +125,42 @@ export default function BookingCalendar({ services }){
   }
 
   async function submitBooking(){
-    if(!selectedService || !selectedSlot) return setToast({open:true, message:'Veuillez choisir une prestation et un créneau', type:'warning'})
+    const newErrors = {firstName:'', lastName:'', phone:'', email:''}
+    let hasError = false
+    
+    if(!selectedService || !selectedSlot) {
+      return setToast({open:true, message:'Veuillez choisir une prestation et un créneau', type:'warning'})
+    }
+    
     // require first name OR last name
     if(!(form.firstName && form.firstName.trim()) && !(form.lastName && form.lastName.trim())){
-      return setToast({open:true, message:'Veuillez fournir un prénom ou un nom', type:'warning'})
+      newErrors.firstName = 'Veuillez fournir un prénom'
+      newErrors.lastName = 'ou un nom'
+      hasError = true
     }
+    
     // Validate phone format (10 digits)
     if(form.phone && form.phone.trim() && !isValidFrenchPhone(form.phone)){
-      return setToast({open:true, message:'Le téléphone doit contenir 10 chiffres', type:'warning'})
+      newErrors.phone = 'Le téléphone doit contenir 10 chiffres'
+      hasError = true
     }
     
     // Validate email format
     if(form.email && form.email.trim() && !isValidEmail(form.email)){
-      return setToast({open:true, message:'Format d\'email invalide', type:'warning'})
+      newErrors.email = 'Format d\'email invalide'
+      hasError = true
     }
     
     // require phone OR email
     if(!(form.phone && form.phone.trim()) && !(form.email && form.email.trim())){
-      return setToast({open:true, message:'Veuillez fournir un téléphone ou un email', type:'warning'})
+      if(!newErrors.phone) newErrors.phone = 'Veuillez fournir un téléphone'
+      if(!newErrors.email) newErrors.email = 'ou un email'
+      hasError = true
+    }
+    
+    if(hasError) {
+      setErrors(newErrors)
+      return
     }
     const payload = { serviceId: selectedService.id, date: selectedSlot.toISOString(), ...form }
     setLoading(true)
@@ -276,15 +295,19 @@ export default function BookingCalendar({ services }){
               <div className="mt-3 flex flex-col gap-2">
                 {/* Prénom ou Nom */}
                 <div className="flex flex-col items-center gap-1">
+                  {errors.firstName && <div className="text-red-500 text-sm w-full text-center">{errors.firstName}</div>}
                   <input className="flex-1 p-2 rounded border w-full" placeholder="Prénom" value={form.firstName} onChange={e=>setForm(f=>({...f, firstName:e.target.value}))} />
                   <span className="text-gray-500 text-sm">ou</span>
+                  {errors.lastName && <div className="text-red-500 text-sm w-full text-center">{errors.lastName}</div>}
                   <input className="flex-1 p-2 rounded border w-full" placeholder="Nom" value={form.lastName} onChange={e=>setForm(f=>({...f, lastName:e.target.value}))} />
                 </div>
                 
                 {/* Téléphone ou Email */}
                 <div className="flex flex-col items-center gap-1">
+                  {errors.phone && <div className="text-red-500 text-sm w-full text-center">{errors.phone}</div>}
                   <input className="flex-1 p-2 rounded border w-full" placeholder="Téléphone" value={form.phone} onChange={e=>setForm(f=>({...f, phone:e.target.value}))} />
                   <span className="text-gray-500 text-sm">ou</span>
+                  {errors.email && <div className="text-red-500 text-sm w-full text-center">{errors.email}</div>}
                   <input className="flex-1 p-2 rounded border w-full" placeholder="Email" value={form.email} onChange={e=>setForm(f=>({...f, email:e.target.value}))} />
                 </div>
               </div>

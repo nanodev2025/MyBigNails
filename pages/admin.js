@@ -22,9 +22,10 @@ export default function Admin(){
   if(loading) return <div className="p-8">Vérification en cours...</div>
 
   return (
-    <div>
+    <div className="min-h-screen flex flex-col">
       <Head>
         <title>Admin - Planning</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
       </Head>
       <AdminDashboard />
     </div>
