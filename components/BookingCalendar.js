@@ -309,7 +309,7 @@ export default function BookingCalendar({ services }){
                     {errors.firstName && <div className="text-red-500 text-sm text-center">{errors.firstName}</div>}
                     <input className="p-2 rounded border w-full" placeholder="Prénom" value={form.firstName} onChange={e=>setForm(f=>({...f, firstName:e.target.value}))} />
                   </div>
-                  <span className="text-gray-500 text-sm hidden sm:block">ou</span>
+                  <span className="text-gray-500 text-sm">ou</span>
                   <div className="flex-1 w-full sm:w-auto">
                     {errors.lastName && <div className="text-red-500 text-sm text-center">{errors.lastName}</div>}
                     <input className="p-2 rounded border w-full" placeholder="Nom" value={form.lastName} onChange={e=>setForm(f=>({...f, lastName:e.target.value}))} />
@@ -322,7 +322,7 @@ export default function BookingCalendar({ services }){
                     {errors.phone && <div className="text-red-500 text-sm text-center">{errors.phone}</div>}
                     <input className="p-2 rounded border w-full" placeholder="Téléphone" value={form.phone} onChange={e=>setForm(f=>({...f, phone:e.target.value}))} />
                   </div>
-                  <span className="text-gray-500 text-sm hidden sm:block">ou</span>
+                  <span className="text-gray-500 text-sm">ou</span>
                   <div className="flex-1 w-full sm:w-auto">
                     {errors.email && <div className="text-red-500 text-sm text-center">{errors.email}</div>}
                     <input className="p-2 rounded border w-full" placeholder="Email" value={form.email} onChange={e=>setForm(f=>({...f, email:e.target.value}))} />
