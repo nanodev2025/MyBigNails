@@ -484,16 +484,7 @@ export default function AdminDashboard(){
           appearance: textfield;
         }
       `}</style>
-      {/* Bouton retour au dashboard */}
-      <div className="fixed bottom-6 right-6 z-50">
-        <button
-          onClick={() => window.location.href = '/admin'}
-          className="w-16 h-16 bg-white rounded-full shadow-lg flex items-center justify-center text-2xl hover:bg-gray-50 transition-colors"
-          aria-label="Retour au dashboard"
-        >
-          🏠
-        </button>
-      </div>
+
     </div>
   )
 }

@@ -29,7 +29,7 @@ export default function AdminLogin(){
       <form onSubmit={submit} className="bg-white p-6 rounded shadow-md w-full max-w-sm">
         <h2 className="text-2xl font-semibold mb-4 text-center">Connexion Admin</h2>
         {error && <div className="text-red-600 text-sm mb-2">{error}</div>}
-        <label className="block text-sm font-medium text-gray-700">Mot de passe</label>
+        <label className="block text-sm font-medium text-gray-700">Mot de passe Admin</label>
         <input
           type="password"
           value={password}
