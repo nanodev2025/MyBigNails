@@ -15,8 +15,15 @@ html,body,#__next{
   height:100%;
 }
 
+html {
+  background-color: white;
+}
+
 body{
-  @apply bg-rose-powder text-gray-800 font-sans;
+  @apply text-gray-800 font-sans;
+  background-color: #F8E8EB;
+  padding-top: constant(safe-area-inset-top);
+  padding-top: env(safe-area-inset-top);
 }
 
 .rounded-soft{
@@ -62,15 +69,10 @@ body{
   }
 }
 
-/* Fix pour les notch/iPhone - étend le header dans la safe area */
-body {
-  padding-top: constant(safe-area-inset-top);
-  padding-top: env(safe-area-inset-top);
-}
-
+/* Fix pour les notch/iPhone - le header commence tout en haut */
 header {
-  margin-top: calc(-1 * constant(safe-area-inset-top));
-  margin-top: calc(-1 * env(safe-area-inset-top));
   background-color: white !important;
+  position: relative;
+  z-index: 10;
 }
 
